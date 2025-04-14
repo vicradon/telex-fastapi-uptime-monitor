@@ -13,15 +13,14 @@ class Setting(BaseModel):
     required: bool
     default: str
 
-
 class MonitorPayload(BaseModel):
     channel_id: str
     return_url: str
     settings: List[Setting]
 
 class AuthCallbackPayload(BaseModel):
-    api_key: str
-    org_id: str
+    api_key: Optional[str]
+    org_id: Optional[str]
 
 app = FastAPI()
 
