@@ -1,3 +1,4 @@
+import os
 import asyncio
 import json
 import datetime
@@ -8,7 +9,17 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import httpx
 import random
+import redis
 
+r = redis.Redis(
+    host=os.getenv("redis_host"),
+    port=os.getenv("redis_port"),
+    decode_responses=True,
+    username=os.getenv("redis_username"),
+    password=os.getenv("redis_password",
+)
+
+telex_keys_key="telex_api_keys"
 
 class Setting(BaseModel):
     label: str
@@ -170,9 +181,11 @@ class NewMessagePayload(BaseModel):
     is_dm: Optional[bool] = False
 
 
-def send_back_to_telex(payload):
+def send_back_to_telex(payload:NewMessagePayload):
     sendback_uri = f"https://ping.staging.telex.im/v1/return/{payload.channel_id}"
-
+    api_key = redis.hget(telex_keys_key, payload.org_id)
+    headers = {"X-TELEX-API-KEY": api_key}
+    
     goofy_responses = [
         f"Hehe, I'm da uptimer. The datetime is {datetime.datetime.now().isoformat()} and the Sun's probably shining somewhere else in the world.",
         f"Yo! I just pinged a random IP and it winked back. Probably means it's up. Time now: {datetime.datetime.utcnow().isoformat()}Z.",
@@ -190,6 +203,7 @@ def send_back_to_telex(payload):
 
     httpx.post(
         sendback_uri,
+        headers=headers,
         json={"message": message},
     )
 
@@ -199,6 +213,8 @@ def complete_auth_exchange(payload: AuthCallbackPayload):
     headers = {"X-TELEX-API-KEY": payload.api_key or ""}
 
     response = httpx.get(url, headers=headers)
+    if response.ok:
+        r.hset(telex_keys_key, payload.org_id, payload.api_key)
     return response
 
 
@@ -207,7 +223,6 @@ def complete_auth_exchange(payload: AuthCallbackPayload):
 async def receive_message(
     payload: NewMessagePayload, background_tasks: BackgroundTasks
 ):
-    # payload = await payload.body()
     background_tasks.add_task(send_back_to_telex, payload)
     return {"status": "success", "message": "thank you Telex for your message"}
 
