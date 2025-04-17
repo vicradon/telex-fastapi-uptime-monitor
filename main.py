@@ -194,6 +194,14 @@ def send_back_to_telex(payload):
     )
 
 
+def complete_auth_exchange(payload: AuthCallbackPayload):
+    url = "https://api.staging.telex.im/api/v1/agents/callback"
+    headers = {"X-TELEX-API-KEY": payload.api_key or ""}
+
+    response = httpx.get(url, headers=headers)
+    return response
+
+
 # NewMessagePayload
 @app.post("/receive_message")
 async def receive_message(
@@ -205,9 +213,11 @@ async def receive_message(
 
 
 @app.post("/auth_callback", status_code=200)
-def handle_auth_callback(payload: AuthCallbackPayload):
+def handle_auth_callback(
+    payload: AuthCallbackPayload, background_tasks: BackgroundTasks
+):
     """call back telex using the API key"""
-    print(payload)
+    background_tasks.add_task(complete_auth_exchange, payload)
     return {"status": "success", "payload": payload}
 
 
