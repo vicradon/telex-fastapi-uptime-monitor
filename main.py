@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import httpx
+import random
 
 
 class Setting(BaseModel):
@@ -171,11 +172,25 @@ class NewMessagePayload(BaseModel):
 
 def send_back_to_telex(payload):
     sendback_uri = f"https://ping.staging.telex.im/v1/return/{payload.channel_id}"
+
+    goofy_responses = [
+        f"Hehe, I'm da uptimer. The datetime is {datetime.datetime.now().isoformat()} and the Sun's probably shining somewhere else in the world.",
+        f"Yo! I just pinged a random IP and it winked back. Probably means it's up. Time now: {datetime.datetime.utcnow().isoformat()}Z.",
+        "Uhh, I saw a 200 OK fly by in the logs... so yeah, some server somewhere still breathes!",
+        f"STATUS UPDATE: The time is {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} and I definitely just misread a timeout as success.",
+        "Bleep bloop, uptime is technically non-zero. Parsing request failed... but aren't we all failing, really?",
+        f"I scanned some ports, I saw some lights blink. That's all I got. Timestamp: {datetime.datetime.now().ctime()}",
+        "Good news: I didn't crash. Bad news: I have no idea what you asked me. Here’s some fake uptime: 99.98%",
+        f"Just ran 'uptime' on myself. Turns out I'm sentient spaghetti code. Current time: {datetime.datetime.now().isoformat()}",
+        "I pinged a fridge and it hummed back. Uptime confirmed. Or maybe it was the dishwasher.",
+        f"According to my latest diagnostic: 1 out of 5 servers agree I'm doing something. Current Unix timestamp: {int(datetime.datetime.now().timestamp())}",
+    ]
+
+    message = random.choice(goofy_responses)
+
     httpx.post(
         sendback_uri,
-        json={
-            "message": f"Hehe, I'm da uptimer. The datetime is fucking {datetime.datetime.now().isoformat()} and the Sun's probably shining somewhere else in the world"
-        },
+        json={"message": message},
     )
 
 
