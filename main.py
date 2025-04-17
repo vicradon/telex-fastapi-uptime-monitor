@@ -13,10 +13,10 @@ import redis
 
 r = redis.Redis(
     host=os.getenv("redis_host"),
-    port=os.getenv("redis_port"),
+    port=int(os.getenv("redis_port")),
     decode_responses=True,
     username=os.getenv("redis_username"),
-    password=os.getenv("redis_password",
+    password=os.getenv("redis_password"),
 )
 
 telex_keys_key="telex_api_keys"
@@ -183,7 +183,9 @@ class NewMessagePayload(BaseModel):
 
 def send_back_to_telex(payload:NewMessagePayload):
     sendback_uri = f"https://ping.staging.telex.im/v1/return/{payload.channel_id}"
-    api_key = redis.hget(telex_keys_key, payload.org_id)
+    api_key = ""
+    if payload.org_id:
+        api_key = redis.hget(telex_keys_key, payload.org_id)
     headers = {"X-TELEX-API-KEY": api_key}
     
     goofy_responses = [
