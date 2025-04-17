@@ -1,5 +1,6 @@
 import asyncio
 import json
+import datetime
 from fastapi import FastAPI, BackgroundTasks, Request, Body
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,8 +32,12 @@ app = FastAPI()
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://staging.telextest.im", "http://telextest.im",
-                   "https://staging.telex.im", "https://telex.im"],  # NB: telextest is a local url
+    allow_origins=[
+        "http://staging.telextest.im",
+        "http://telextest.im",
+        "https://staging.telex.im",
+        "https://telex.im",
+    ],  # NB: telextest is a local url
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -70,10 +75,8 @@ def get_integration_json(request: Request):
             "author": "Osinachi Chukwujama",
             "website": base_url,
             "settings": [
-                {"label": "site-1", "type": "text",
-                    "required": True, "default": ""},
-                {"label": "site-2", "type": "text",
-                    "required": True, "default": ""},
+                {"label": "site-1", "type": "text", "required": True, "default": ""},
+                {"label": "site-2", "type": "text", "required": True, "default": ""},
                 {
                     "label": "interval",
                     "type": "text",
@@ -81,22 +84,22 @@ def get_integration_json(request: Request):
                     "default": "* * * * *",
                 },
             ],
-            "target_url": "",
-            "tick_url": f"{base_url}/tick"
+            "target_url": f"{base_url}/receive_message",
+            "tick_url": f"{base_url}/tick",
         }
     }
 
     return integration_json
 
 
-async def check_site_status(site: str, max_retries: int = 3, timeout: float = 10.0) -> Optional[str]:
+async def check_site_status(
+    site: str, max_retries: int = 3, timeout: float = 10.0
+) -> Optional[str]:
     transport = httpx.AsyncHTTPTransport(retries=max_retries)
 
     # Configure client with retry transport
     async with httpx.AsyncClient(
-        transport=transport,
-        timeout=timeout,
-        follow_redirects=True
+        transport=transport, timeout=timeout, follow_redirects=True
     ) as client:
         try:
             response = await client.get(site)
@@ -136,12 +139,11 @@ async def monitor_task(payload: MonitorPayload):
         "message": results,
         "username": "Uptime Monitor",
         "event_name": "Uptime Check",
-        "status": "error"
+        "status": "error",
     }
 
     headers = {"Content-Type": "application/json"}
 
-    print(payload)
     if results:
         async with httpx.AsyncClient() as client:
             res = await client.post(
@@ -156,15 +158,35 @@ def monitor(payload: MonitorPayload, background_tasks: BackgroundTasks):
     return {"status": "success"}
 
 
-'''
-@app.post("/auth_callback", status_code=200)
-async def handle_auth_callback(request: Request):
-    body = await request.body()
-    headers = request.headers
-    print("Raw body:", body.decode("utf-8"))
-    print("Raw headers:", headers)
-    return JSONResponse(content={"status": "success", "raw_body": body.decode("utf-8")})
-'''
+class NewMessagePayload(BaseModel):
+    message: str
+    org_id: Optional[str] = None
+    channel_id: Optional[str] = None
+    thread_id: Optional[str] = None
+    media: Optional[List[Dict[str, Any]]] = None
+    mentions: Optional[List[Dict[str, Any]]] = None
+    is_mentioned: Optional[bool] = None
+    is_dm: Optional[bool] = False
+
+
+def send_back_to_telex(payload):
+    sendback_uri = f"https://ping.staging.telex.im/v1/return/{payload.channel_id}"
+    httpx.post(
+        sendback_uri,
+        json={
+            "message": f"Hehe, I'm da uptimer. The datetime is fucking {datetime.datetime.now().isoformat()} and the Sun's probably shining somewhere else in the world"
+        },
+    )
+
+
+# NewMessagePayload
+@app.post("/receive_message")
+async def receive_message(
+    payload: NewMessagePayload, background_tasks: BackgroundTasks
+):
+    # payload = await payload.body()
+    background_tasks.add_task(send_back_to_telex, payload)
+    return {"status": "success", "message": "thank you Telex for your message"}
 
 
 @app.post("/auth_callback", status_code=200)
