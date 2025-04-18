@@ -10,6 +10,7 @@ from typing import List, Optional, Dict, Any
 import httpx
 import random
 import redis
+from enum import Enum
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -175,8 +176,14 @@ def monitor(payload: MonitorPayload, background_tasks: BackgroundTasks):
     return {"status": "success"}
 
 
+class MessageType(Enum):
+    THREAD = "message"
+    REGULAR = "message/thread"
+
+
 class NewMessagePayload(BaseModel):
     message: str
+    message_type: MessageType
     org_id: Optional[str] = None
     channel_id: Optional[str] = None
     thread_id: Optional[str] = None
@@ -208,10 +215,16 @@ def send_back_to_telex(payload: NewMessagePayload):
 
     message = random.choice(goofy_responses)
 
+    reply_json = {"message": message}
+
+    if payload.message_type == MessageType.THREAD:
+        reply_json["reply"] = True
+        reply_json["thread_id"] = payload.thread_id
+
     httpx.post(
         sendback_uri,
         headers=headers,
-        json={"message": message},
+        json=reply_json,
     )
 
 
