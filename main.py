@@ -196,6 +196,7 @@ class NewMessagePayload(BaseModel):
     class Config:
         extra = "allow"
 
+
 def send_back_to_telex(payload: NewMessagePayload):
     sendback_uri = f"https://ping.staging.telex.im/v1/return/{payload.channel_id}"
     api_key = ""
@@ -224,11 +225,17 @@ def send_back_to_telex(payload: NewMessagePayload):
         reply_json["reply"] = True
         reply_json["thread_id"] = payload.thread_id
 
-    httpx.post(
+    res = httpx.post(
         sendback_uri,
         headers=headers,
         json=reply_json,
     )
+
+    if res.status_code < 400 and res.status_code >= 200:
+        if reply_json.get("reply"):
+            print("successfully sent thread message back to telx")
+        else:
+            print("successfully sent message back to telx")
 
 
 def complete_auth_exchange(payload: AuthCallbackPayload):
