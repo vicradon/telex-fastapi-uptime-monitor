@@ -184,6 +184,7 @@ class MessageType(Enum):
 class NewMessagePayload(BaseModel):
     message: str
     message_type: MessageType
+    settings: Optional[List[Dict[str, Any]]] = None
     org_id: Optional[str] = None
     channel_id: Optional[str] = None
     thread_id: Optional[str] = None
@@ -192,6 +193,8 @@ class NewMessagePayload(BaseModel):
     is_mentioned: Optional[bool] = None
     is_dm: Optional[bool] = False
 
+    class Config:
+        extra = "allow"
 
 def send_back_to_telex(payload: NewMessagePayload):
     sendback_uri = f"https://ping.staging.telex.im/v1/return/{payload.channel_id}"
