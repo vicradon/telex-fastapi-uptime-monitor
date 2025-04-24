@@ -200,9 +200,9 @@ class NewMessagePayload(BaseModel):
 def send_back_to_telex(payload: NewMessagePayload):
     sendback_uri = f"https://ping.staging.telex.im/v1/return/{payload.channel_id}"
     api_key = ""
+    headers = {}
     if payload.org_id:
         api_key = r.hget(telex_keys_key, payload.org_id)
-    headers = {"X-TELEX-API-KEY": api_key}
 
     goofy_responses = [
         f"Hehe, I'm da uptimer. The datetime is {datetime.datetime.now().isoformat()} and the Sun's probably shining somewhere else in the world.",
@@ -220,6 +220,12 @@ def send_back_to_telex(payload: NewMessagePayload):
     message = random.choice(goofy_responses)
 
     reply_json = {"message": message}
+
+    # TODO: This was done for backwards compability, remove when enforcing API keys
+    if api_key:
+        headers = {"X-TELEX-API-KEY": api_key}
+    else:
+        reply_json["username"] = "Uptimer Bot"
 
     if payload.message_type == MessageType.THREAD:
         reply_json["reply"] = True
