@@ -243,7 +243,7 @@ def send_back_to_telex(payload: NewMessagePayload):
         else:
             print("successfully sent message back to telx")
     else:
-        print("Failed to send message back to Telex")
+        print("Failed to send message back to Telex", res.text)
 
 
 def complete_auth_exchange(payload: AuthCallbackPayload):
