@@ -183,7 +183,7 @@ class MessageType(Enum):
 
 class NewMessagePayload(BaseModel):
     message: str
-    message_type: MessageType
+    message_type: Optional[MessageType] = None
     settings: Optional[List[Dict[str, Any]]] = None
     org_id: Optional[str] = None
     channel_id: Optional[str] = None
@@ -242,6 +242,8 @@ def send_back_to_telex(payload: NewMessagePayload):
             print("successfully sent thread message back to telx")
         else:
             print("successfully sent message back to telx")
+    else:
+        print("Failed to send message back to Telex")
 
 
 def complete_auth_exchange(payload: AuthCallbackPayload):
