@@ -250,11 +250,16 @@ def complete_auth_exchange(payload: AuthCallbackPayload):
     url = "https://api.staging.telex.im/api/v1/agents/callback"
     headers = {"X-TELEX-API-KEY": payload.api_key or ""}
 
+    print(f"Starting auth exchange process for org - {payload.org_id} with headers {headers}")
+
     response = httpx.get(url, headers=headers)
 
     if response.status_code < 400:
         r.hset(telex_keys_key, payload.org_id, payload.api_key)
         print(f"auth exchange completed successfully for org - {payload.org_id}")
+    else:
+        print(f"Response status code is {response.status_code} and body is {response.text}")
+        
     return response
 
 
