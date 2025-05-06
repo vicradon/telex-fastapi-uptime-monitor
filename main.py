@@ -196,11 +196,15 @@ class NewMessagePayload(BaseModel):
     class Config:
         extra = "allow"
 
-
 def send_back_to_telex(payload: NewMessagePayload):
-    sendback_uri = f"https://ping.staging.telex.im/v1/return/{payload.channel_id}"
+    base_urls = [
+        "https://ping.staging.telex.im",
+        "https://ping.telex.im"
+    ]
+
     api_key = ""
     headers = {}
+
     if payload.org_id:
         api_key = r.hget(telex_keys_key, payload.org_id)
 
@@ -218,10 +222,8 @@ def send_back_to_telex(payload: NewMessagePayload):
     ]
 
     message = random.choice(goofy_responses)
-
     reply_json = {"message": message}
 
-    # TODO: This was done for backwards compability, remove when enforcing API keys
     if api_key:
         headers = {"X-TELEX-API-KEY": api_key}
     else:
@@ -231,36 +233,55 @@ def send_back_to_telex(payload: NewMessagePayload):
         reply_json["reply"] = True
         reply_json["thread_id"] = payload.thread_id
 
-    res = httpx.post(
-        sendback_uri,
-        headers=headers,
-        json=reply_json,
-    )
+    res = None
 
-    if res.status_code < 400 and res.status_code >= 200:
-        if reply_json.get("reply"):
-            print("successfully sent thread message back to telx")
-        else:
-            print("successfully sent message back to telx")
-    else:
-        print("Failed to send message back to Telex", res.text)
+    for base_url in base_urls:
+        sendback_uri = f"{base_url}/v1/return/{payload.channel_id}"
+        try:
+            res = httpx.post(
+                sendback_uri,
+                headers=headers,
+                json=reply_json,
+                timeout=5.0
+            )
+            if 200 <= res.status_code < 400:
+                print("Successfully sent thread message back to Telex" if reply_json.get("reply") else "Successfully sent message back to Telex")
+                return
+            else:
+                print(f"Failed at {base_url}: {res.status_code} - {res.text}")
+        except httpx.RequestError as e:
+            print(f"Request to {sendback_uri} failed: {e}")
+
+    print("Failed to send message back to Telex after trying both staging and prod", res.text if res else "No response")
 
 
 def complete_auth_exchange(payload: AuthCallbackPayload):
-    url = "https://api.staging.telex.im/api/v1/agents/callback"
+    base_urls = [
+        "https://api.staging.telex.im",
+        "https://api.telex.im"
+    ]
+
     headers = {"X-TELEX-API-KEY": payload.api_key or ""}
+    response = None
 
-    print(f"Starting auth exchange process for org - {payload.org_id} with headers {headers}")
+    for base_url in base_urls:
+        url = f"{base_url}/api/v1/agents/callback"
+        try:
+            print(f"Attempting auth exchange for org {payload.org_id} at {url}")
+            response = httpx.get(url, headers=headers, timeout=5.0)
 
-    response = httpx.get(url, headers=headers)
+            if response.status_code < 400:
+                r.hset(telex_keys_key, payload.org_id, payload.api_key)
+                print(f"Auth exchange succeeded at {base_url} for org {payload.org_id}")
+                return response
+            else:
+                print(f"Failed at {base_url}: {response.status_code} - {response.text}")
+        except httpx.RequestError as e:
+            print(f"Request to {base_url} failed: {e}")
 
-    if response.status_code < 400:
-        r.hset(telex_keys_key, payload.org_id, payload.api_key)
-        print(f"auth exchange completed successfully for org - {payload.org_id}")
-    else:
-        print(f"Response status code is {response.status_code} and body is {response.text}")
-        
+    print(f"Auth exchange failed for org {payload.org_id} after trying both staging and prod")
     return response
+
 
 
 # NewMessagePayload
