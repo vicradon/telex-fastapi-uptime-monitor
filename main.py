@@ -254,6 +254,7 @@ def complete_auth_exchange(payload: AuthCallbackPayload):
 
     if response.status_code < 400:
         r.hset(telex_keys_key, payload.org_id, payload.api_key)
+        print(f"auth exchange completed successfully for org - {payload.org_id}")
     return response
 
 
