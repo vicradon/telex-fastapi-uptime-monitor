@@ -77,7 +77,7 @@ def get_integration_json(request: Request):
             "descriptions": {
                 "app_name": "Uptime Monitor",
                 "app_description": "A local uptime monitor",
-                "app_logo": "https://i.imgur.com/lZqvffp.png",
+                "app_logo": "https://media.tifi.tv/telexbucket/public/logos/uptimer-logo.png",
                 "app_url": base_url,
                 "background_color": "#fff",
             },
